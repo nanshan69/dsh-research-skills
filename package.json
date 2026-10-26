@@ -1,0 +1,42 @@
+{
+  "name": "dsh-research-skills",
+  "version": "1.0.0",
+  "description": "科研写作技能包：文献检索、证据提取、论文写作规范、统计分析计划、文档工具链、学术润色、论文翻译",
+  "license": "MIT",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "skills-sync.js",
+    "cordis.patch.yml",
+    "package.json",
+    "README.md",
+    "skills"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dshm",
+    "openharmony",
+    "academic",
+    "research",
+    "skills",
+    "pubmed"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nanshan69/dsh-research-skills.git"
+  }
+}

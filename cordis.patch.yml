@@ -1,0 +1,5 @@
+# dsh-research-skills bundle 层：只插入一个无 UI 的 host 条目，
+# 开机时把包内 skills/ 铺到 <dsh-home>/skills/。
+- insert:
+    - id: research-skills
+      name: dsh-research-skills
