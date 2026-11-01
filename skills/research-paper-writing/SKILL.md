@@ -1,8 +1,16 @@
 ---
 name: research-paper-writing
-description: 学术论文写作与投稿：IMRaD 骨架、CONSORT/STROBE/PRISMA/SPIRIT 报告规范、标题与结构化摘要、期刊分档选择、cover letter、审稿回复逐条写法、参考文献格式与学术规范红线。写论文/摘要/投稿信、回复审稿意见、判断该按哪个报告规范写时读。
+description: 学术论文写作与投稿：IMRaD 骨架、CONSORT/STROBE/PRISMA/SPIRIT 报告规范、标题与结构化摘要、期刊分档选择、cover letter、审稿回复逐条写法、参考文献格式与学术规范红线，以及科研通用文本规范（标点、数字、单位、统计符号、图表、术语缩写、引文格式）和英文期刊投稿规范（AMA/APA/NEJM/Lancet 体例、投稿材料、声明）。写论文/摘要/投稿信/方案/标书/综述、投英文期刊、回复审稿意见、判断该按哪个报告规范写，或统一科研文本格式时读。
 ---
 # 论文写作与投稿
+
+## 0. 通用文本规范（所有科研文本必须遵守）
+
+写作、修改、翻译、润色或排版论文、学位论文、综述、研究方案、基金标书、证据表和汇报稿时，
+先读 `references/text-conventions.md`，按其中的标点、数字、计量单位、统计表述、图表、术语缩写、
+参考文献和文风规则执行，交付前过它的自查清单。英文稿和投英文期刊的稿件另读
+`references/english-journal-conventions.md`。期刊、学校或基金委模板有不同规定时以模板为准，并向用户说明差异；
+用户的明确要求（如字体）与模板冲突时，先说明差异，由用户决定。
 
 ## 1. IMRaD 骨架（临床研究）
 
@@ -61,6 +69,7 @@ description: 学术论文写作与投稿：IMRaD 骨架、CONSORT/STROBE/PRISMA/
 - 医学期刊多用 Vancouver；用 `pubmed cite --pmids ...` 生成初稿，再按目标期刊调格式。
 - 核对：`pubmed verify --file 稿件.md`，确保没有假引用。
 - 稿件用 Markdown 写 → `md2docx` 转 .docx 交付（源文件保留 .md）。
+- 字体遵循 `../research-toolkit/SKILL.md` 的用户默认规范：中文正文宋体、中文标题黑体；英文和阿拉伯数字 Times New Roman，混排分别设置。除非用户明确要求，不随期刊/学校模板自动更换字体；有冲突先说明。
 - 图：`figures`（森林图/柱状/折线，SVG）；正式投稿图建议在 PC 端重绘（≥300 dpi）。
 - 语言：中文稿术语保留英文；英文稿注意时态（Methods 过去时、结论现在时）。
 

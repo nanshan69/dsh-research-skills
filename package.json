@@ -1,7 +1,7 @@
 {
   "name": "dsh-research-skills",
   "version": "1.0.0",
-  "description": "科研写作技能包：文献检索、证据提取、论文写作规范、统计分析计划、文档工具链、学术润色、论文翻译",
+  "description": "科研写作技能包：文献检索、证据提取、论文写作规范、统计分析计划、文档工具链、学术润色、论文翻译、基金申请技术路线图",
   "license": "MIT",
   "type": "module",
   "main": "./index.js",

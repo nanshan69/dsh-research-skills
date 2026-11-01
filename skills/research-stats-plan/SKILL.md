@@ -37,7 +37,8 @@ description: 样本量/效能计算与统计分析计划（SAP）通用方法：
    不宣称组间疗效差异。
 7. **模型假设**：残差正态性/方差齐性；违背后用 bootstrap/稳健 SE（PC 端 R/Stata）。
 8. **报告规范**：CONSORT/STROBE/SPIRIT + ICH E9(R1)；数值精度：均数/差值 1–2 位小数，
-   p 3 位（<0.001），CI 与效应量同精度。
+   p 3 位（<0.001），CI 与效应量同精度。统计符号斜体、均数±标准差、效应量与95%CI 的写法见
+   `../research-paper-writing/references/text-conventions.md` 第 4 节。
 
 ## 3. 常用命令
 

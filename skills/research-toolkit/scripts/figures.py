@@ -37,7 +37,12 @@ class Svg:
             f'<rect width="{w}" height="{h}" fill="white"/>',
         ]
 
-    def text(self, x, y, s, size=12, anchor="start", weight="normal", fill="#222", family="'Microsoft YaHei', 'PingFang SC', sans-serif"):
+    def text(self, x, y, s, size=12, anchor="start", weight="normal", fill="#222", family=None):
+        # 西文优先 Times New Roman；汉字回退到正文宋体、标题黑体。
+        # macOS 没有名为“宋体”“黑体”的字体，所以各接上 Songti SC、STHeiti。
+        if family is None:
+            chinese = "'SimHei', '黑体', 'STHeiti'" if weight == "bold" else "'SimSun', '宋体', 'Songti SC'"
+            family = f"'Times New Roman', {chinese}"
         self.parts.append(
             f'<text x="{x:.1f}" y="{y:.1f}" font-size="{size}" text-anchor="{anchor}" '
             f'font-weight="{weight}" fill="{fill}" font-family="{family}">{_esc(str(s))}</text>')

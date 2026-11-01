@@ -1,8 +1,8 @@
 # dsh-research-skills
 
-DSHM（DSH on HarmonyOS）的**科研技能包**：8 个技能，装完开机自动铺到 `$DSH_HOME/skills/`。
+DSHM（DSH on HarmonyOS）的**科研技能包**：9 个技能，装完开机自动铺到 `$DSH_HOME/skills/`。
 
-这些技能用于做课题、写论文、查文献、跑统计、生成 Word/PPT。**与酒馆（dsh-tavern）无关** ——
+这些技能用于做课题、写论文、查文献、跑统计、生成 Word/PPT、画技术路线图。**与酒馆（dsh-tavern）无关** ——
 从 `dsh-tavern-gate` 里拆出来单独成包，就是为了让两边各管各的。
 
 ## 包含的技能
@@ -30,8 +30,14 @@ DSHM（DSH on HarmonyOS）的**科研技能包**：8 个技能，装完开机自
 | `research-stats-plan` | 样本量/效能计算、统计分析计划（SAP）：分析集、主要分析、缺失与伴发事件、多重性、模型假设、报告规范 |
 | `research-toolkit` | 纯 Python 工具链（无 pandoc/LibreOffice）：Markdown→DOCX（封面/页眉/目录/三线表）、Markdown/DSL→PPTX、DOCX/PDF 读取检索、CSV↔XLSX、SVG 图表、样本量与统计核对、PubMed 检索 |
 
+### 基金申请图示（2026-10-28 新增）
+
+| 技能 | 用途 |
+|---|---|
+| `nsfc-figure` | NSFC/基金标书的技术路线图、概念图、研究内容关系图：JSON 配置 → 可编辑未压缩 `.drawio`，含结构校验、导出元数据检查、端侧近似 SVG 预览。上游 [njzjz/nsfc-agent-skills](https://github.com/njzjz/nsfc-agent-skills) 的 `nsfc-figure`，已做 DSHM 端侧适配（删 `from __future__`、加 `scripts/run_nsfc.py` 运行器、加 `preview_roadmap.py`），改动明细见技能内 `references/dshm-adaptation.md` |
+
 `research-toolkit` 自带 10 个脚本 + 一个 PPTX 模板（`scripts/_pptx_template.pptx`），
-总计约 240 KB，是本包里最大的部分。
+总计约 240 KB，是本包里最大的部分。`nsfc-figure` 自带 4 个脚本 + 1 个 JSON 模板 + 1 个示例，约 400 KB（示例 PNG 占大部分）。
 
 ## 安装
 

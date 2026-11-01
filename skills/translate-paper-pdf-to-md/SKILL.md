@@ -1,6 +1,6 @@
 ---
 name: translate-paper-pdf-to-md
-description: Translate English academic PDF papers into polished target-language Markdown documents while preserving figures, tables, equations, citations, document structure, and domain-specific terminology. Use when Codex is asked to turn an English research PDF into a localized .md paper, extract visual assets, rebuild editable content, ask for field/style translation preferences before translating, or avoid low-quality machine-translated PDF output.
+description: Translate English academic PDF papers into polished target-language Markdown documents while preserving figures, tables, equations, citations, document structure, and domain-specific terminology. Use when Codex is asked to turn an English research PDF into a localized .md paper, extract visual assets, rebuild editable content, ask for field/style translation preferences before translating, avoid low-quality machine-translated PDF output, or check an existing Chinese translation (with interpretation) against the source PDF.
 ---
 
 # Translate Paper PDF to Markdown
@@ -77,6 +77,8 @@ Prefer these scripts for repeatable setup and validation, then do the translatio
 - Keep acronyms on first use, e.g. “中文术语（English Term, ACRONYM）” when useful for the target audience.
 - Keep equation variables unchanged.
 - Keep citation brackets unchanged, e.g. `[28]`.
+- For Chinese output, follow `../research-paper-writing/references/text-conventions.md` for punctuation, numerals, unit spacing, statistical symbols, and figure/table captions. Never change source values, citation numbers, or equation variables while doing so.
+- For a Chinese translation with interpretation (译文 + 解读), or when checking and revising an existing Chinese translation, follow `references/translation-review.md`: translator's notes as “（译注：……）”, no weakening or strengthening of the source's claims, complete figure captions, per-paper checks, lead verification against the PDF, and a Chinese revision log. Report to the user in Chinese.
 - Avoid adding commentary that is not in the paper except a short “整理说明” if useful.
 - If the source text extraction is noisy, use page images and local context to reconstruct meaning rather than copying OCR artifacts.
 

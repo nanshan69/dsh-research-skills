@@ -53,7 +53,7 @@ STYLES_XML = XML_DECL + f'''<w:styles {W_NS}>
   <w:rPr><w:rFonts w:ascii="Times New Roman" w:eastAsia="黑体"/><w:b/><w:sz w:val="36"/><w:szCs w:val="36"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/>
   <w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr>
-  <w:rPr><w:rFonts w:eastAsia="楷体"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
+  <w:rPr><w:rFonts w:eastAsia="黑体"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/>
   <w:pPr><w:keepNext/><w:spacing w:before="360" w:after="120"/><w:outlineLvl w:val="0"/></w:pPr>
   <w:rPr><w:rFonts w:ascii="Times New Roman" w:eastAsia="黑体"/><w:b/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr></w:style>
@@ -71,18 +71,20 @@ STYLES_XML = XML_DECL + f'''<w:styles {W_NS}>
   <w:rPr><w:i/><w:color w:val="404040"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Code"><w:name w:val="Code"/><w:basedOn w:val="Normal"/>
   <w:pPr><w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr>
-  <w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="18"/></w:rPr></w:style>
+  <w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/><w:sz w:val="18"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="BodyText"><w:name w:val="Body Text"/><w:basedOn w:val="Normal"/><w:qFormat/>
   <w:pPr><w:ind w:firstLineChars="200" w:firstLine="420"/><w:jc w:val="both"/></w:pPr></w:style>
 <w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:basedOn w:val="Normal"/><w:qFormat/>
   <w:pPr><w:spacing w:before="40" w:after="40" w:line="260" w:lineRule="auto"/></w:pPr>
   <w:rPr><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="TableHeader"><w:name w:val="Table Header"/><w:basedOn w:val="TableText"/>
+  <w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="黑体"/><w:b/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="CoverTitle"><w:name w:val="Cover Title"/><w:basedOn w:val="Normal"/><w:qFormat/>
   <w:pPr><w:jc w:val="center"/><w:spacing w:before="2400" w:after="480" w:line="440" w:lineRule="auto"/></w:pPr>
   <w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="黑体"/><w:b/><w:sz w:val="44"/><w:szCs w:val="44"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="CoverSub"><w:name w:val="Cover Subtitle"/><w:basedOn w:val="Normal"/><w:qFormat/>
   <w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr>
-  <w:rPr><w:rFonts w:eastAsia="楷体"/><w:sz w:val="30"/><w:szCs w:val="30"/></w:rPr></w:style>
+  <w:rPr><w:rFonts w:eastAsia="黑体"/><w:sz w:val="30"/><w:szCs w:val="30"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="CoverMeta"><w:name w:val="Cover Meta"/><w:basedOn w:val="Normal"/><w:qFormat/>
   <w:pPr><w:jc w:val="center"/><w:spacing w:after="120"/></w:pPr>
   <w:rPr><w:rFonts w:eastAsia="宋体"/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:style>
@@ -201,7 +203,7 @@ def runs_xml(text: str, base_bold: bool = False) -> str:
         if fmt.get("strike"):
             props.append("<w:strike/>")
         if fmt.get("code"):
-            props.append('<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>')
+            props.append('<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>')
         rpr = f"<w:rPr>{''.join(props)}</w:rPr>" if props else ""
         out.append(f'<w:r>{rpr}<w:t xml:space="preserve">{_esc(content)}</w:t></w:r>')
     return "".join(out)
@@ -293,7 +295,7 @@ def table_xml(header: list[str], rows: list[list[str]], col_aligns: list[str],
         elif is_header:
             tcpr.append('<w:shd w:val="clear" w:color="auto" w:fill="D9E2F3"/>')
         tcpr.append('<w:vAlign w:val="center"/>')
-        body = para_xml("", style="TableText", bold=bold,
+        body = para_xml("", style="TableHeader" if is_header else "TableText", bold=bold,
                         align=align or ("center" if is_header and three else None),
                         runs=runs_xml(text, bold))
         return f"<w:tc><w:tcPr>{''.join(tcpr)}</w:tcPr>{body}</w:tc>"

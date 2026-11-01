@@ -9,7 +9,10 @@ PresentationML 直接拼 XML 打包，生成 16:9 中文汇报幻灯片。
 
 用法：
   python scripts/pptx.py 汇报.md --out 汇报.pptx
-  python scripts/pptx.py 汇报.md --out 汇报.pptx --accent 1F3864 --font "Microsoft YaHei"
+  python scripts/pptx.py 汇报.md --out 汇报.pptx --accent 1F3864 --font "宋体"
+
+默认字体：中文正文宋体，加粗/标题/副标题/表头黑体；英文与数字 Times New Roman。
+--font 或 frontmatter 的 font 仅显式覆盖中文字体，英文与数字仍为 Times New Roman。
 
 Deck DSL（推荐，控制力强）：
   ---
@@ -60,7 +63,7 @@ Deck DSL（推荐，控制力强）：
 幻灯片之间用单独一行 --- 分隔（frontmatter 之后的 ---）。
 
 已知限制：每页一个表格；表格行数过多会提示拆页（不自动分页）；不支持动画/切换、
-图表对象（chart）、SmartArt、超链接；字体需本机已安装（默认微软雅黑，WPS 会替换）。
+图表对象（chart）、SmartArt、超链接；字体需本机已安装，缺字库时由阅读器替换。
 图片与备注只在模板底包模式下写入（默认就是）；--no-template 时会被忽略并提示。
 """
 import argparse
@@ -93,7 +96,9 @@ DARK = "1F2937"
 BG = "F5F7FA"
 WHITE = "FFFFFF"
 LINE = "E5E7EB"
-FONT_DEFAULT = "Microsoft YaHei"
+FONT_DEFAULT = "宋体"
+FONT_BOLD = "黑体"
+FONT_LATIN = "Times New Roman"
 
 NS = ('xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
       'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
@@ -121,9 +126,14 @@ def _line(color: str | None, width: int = 12700) -> str:
             f"<a:solidFill>{_srgb(color)}</a:solidFill><a:prstDash val=\"solid\"/></a:ln>")
 
 
+def _font_faces(font: str | None = None, bold: bool = False) -> str:
+    """显式覆盖仅作用于中文；默认按正文/加粗区分，拉丁字母与数字固定 TNR。"""
+    ea = _esc(font or (FONT_BOLD if bold else FONT_DEFAULT), {'"': "&quot;"})
+    return f'<a:latin typeface="{FONT_LATIN}"/><a:ea typeface="{ea}"/>'
+
+
 def _runs(text: str, size: int, color: str = DARK, bold: bool = False, font: str | None = None) -> str:
     """解析 **加粗**、`代码`，生成 run 序列。"""
-    font = font or FONT_DEFAULT
     out = []
     for part in re.split(r"(\*\*[^*]+\*\*|`[^`]+`)", text):
         if not part:
@@ -135,10 +145,11 @@ def _runs(text: str, size: int, color: str = DARK, bold: bool = False, font: str
             part = part[1:-1]
         rpr = (f'<a:rPr lang="zh-CN" altLang="en-US" sz="{size}" b="{1 if b else 0}" dirty="0">'
                f"<a:solidFill>{_srgb(color)}</a:solidFill>"
-               f'<a:latin typeface="{font}"/><a:ea typeface="{font}"/></a:rPr>')
+               f'{_font_faces(font, b)}</a:rPr>')
         out.append(f'<a:r>{rpr}<a:t xml:space="preserve">{_esc(part)}</a:t></a:r>')
     return "".join(out) if out else (
-        f'<a:r><a:rPr lang="zh-CN" sz="{size}" dirty="0"><a:solidFill>{_srgb(color)}</a:solidFill></a:rPr>'
+        f'<a:r><a:rPr lang="zh-CN" sz="{size}" b="{1 if bold else 0}" dirty="0">'
+        f'<a:solidFill>{_srgb(color)}</a:solidFill>{_font_faces(font, bold)}</a:rPr>'
         f"<a:t></a:t></a:r>")
 
 
@@ -162,7 +173,7 @@ def _para(text: str = "", size: int = 1800, color: str = DARK, bold: bool = Fals
         if bullet == "num":
             bu = '<a:buAutoNum type="arabicPeriod"/>'
         else:
-            bu = f'<a:buFont typeface="Arial"/><a:buChar char="{char}"/>'
+            bu = f'<a:buFont typeface="{FONT_LATIN}"/><a:buChar char="{char}"/>'
         ppr = (f'<a:pPr marL="{base}" indent="{indent}"{algn}>'
                f'<a:lnSpc><a:spcPct val="{line_pct}"/></a:lnSpc>'
                f'<a:spcBef><a:spcPts val="{space_before}"/></a:spcBef>'
@@ -198,7 +209,7 @@ def _textbox(sid: int, name: str, x: int, y: int, w: int, h: int, paras: str,
         '<a:noAutofit/></a:bodyPr><a:lstStyle/>' + paras + "</p:txBody></p:sp>")
 
 
-def _table_tc(text: str, size: int, header: bool, col_w: int, font: str,
+def _table_tc(text: str, size: int, header: bool, col_w: int, font: str | None,
               align: str = "l") -> str:
     color = WHITE if header else DARK
     fill = f'<a:solidFill>{_srgb(NAVY if header else WHITE)}</a:solidFill>'
@@ -252,7 +263,7 @@ def table_font_size(rows: list[list[str]]) -> int:
 
 
 def _table_frame(sid: int, x: int, y: int, w: int, h: int, rows: list[list[str]],
-                 font: str, size: int | None = None) -> str:
+                 font: str | None, size: int | None = None) -> str:
     ncol = max(len(r) for r in rows)
     size = size or table_font_size(rows)
     widths = table_col_widths(rows, w)
@@ -294,9 +305,12 @@ class Deck:
         self.title = meta.get("title", "汇报")
         self.topic = meta.get("topic") or self.title
         self.accent = (meta.get("accent") or NAVY).lstrip("#").upper()
-        self.font = meta.get("font") or FONT_DEFAULT
+        self.font = meta.get("font") or None
         self.slides: list[str] = []
         self._slide_index = 0
+
+    def _para(self, *args, **kwargs) -> str:
+        return _para(*args, font=self.font, **kwargs)
 
     # -- 公共装饰
     def _footer(self, sid: int, dark: bool = False) -> str:
@@ -304,10 +318,10 @@ class Deck:
             return ""
         return (
             _textbox(sid, "FooterTopic", MARGIN, FOOT_Y, int(6.5 * EMU_IN), int(0.3 * EMU_IN),
-                     _para(self.topic, 900, GRAY, line_pct=100000))
+                     self._para(self.topic, 900, GRAY, line_pct=100000))
             + _textbox(sid + 1, "FooterPage", int(9.6 * EMU_IN), FOOT_Y, int(3.1 * EMU_IN),
                        int(0.3 * EMU_IN),
-                       _para(f"{self._slide_index:02d} / {len(self._meta_total or []) or ''}".strip(),
+                       self._para(f"{self._slide_index:02d} / {len(self._meta_total or []) or ''}".strip(),
                              900, GRAY, align="r", line_pct=100000))
         )
 
@@ -331,14 +345,14 @@ class Deck:
                          f'<a:ext cx="{int(6.5 * EMU_IN)}" cy="{int(0.3 * EMU_IN)}"/></a:xfrm>'
                          '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>'
                          '<p:txBody><a:bodyPr lIns="0" tIns="0" rIns="0" bIns="0"><a:noAutofit/></a:bodyPr>'
-                         f'<a:lstStyle/>{_para(self.topic, 900, GRAY, line_pct=100000)}</p:txBody></p:sp>')
+                         f'<a:lstStyle/>{self._para(self.topic, 900, GRAY, line_pct=100000)}</p:txBody></p:sp>')
             children += (f'<p:sp><p:nvSpPr><p:cNvPr id="92" name="FooterPage"/>'
                          '<p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>'
                          f'<p:spPr><a:xfrm><a:off x="{int(9.9 * EMU_IN)}" y="{FOOT_Y}"/>'
                          f'<a:ext cx="{int(2.8 * EMU_IN)}" cy="{int(0.3 * EMU_IN)}"/></a:xfrm>'
                          '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></p:spPr>'
                          '<p:txBody><a:bodyPr lIns="0" tIns="0" rIns="0" bIns="0"><a:noAutofit/></a:bodyPr>'
-                         f'<a:lstStyle/>{_para(self._page_label(), 900, GRAY, align="r", line_pct=100000)}'
+                         f'<a:lstStyle/>{self._para(self._page_label(), 900, GRAY, align="r", line_pct=100000)}'
                          "</p:txBody></p:sp>")
         return (XML_DECL + f"<p:sld {NS}><p:cSld>{_sp_tree(children)}</p:cSld>"
                 "<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>")
@@ -361,20 +375,21 @@ class Deck:
             _shape(5, "AccentBar", int(0.85 * EMU_IN), int(1.25 * EMU_IN), int(0.09 * EMU_IN),
                    int(0.62 * EMU_IN), "", fill=self.accent),
             _textbox(6, "Kicker", int(1.08 * EMU_IN), int(1.18 * EMU_IN), int(8 * EMU_IN),
-                     int(0.4 * EMU_IN), _para(m.get("kicker", "临床研究"), 1200,
+                     int(0.4 * EMU_IN), self._para(m.get("kicker", "临床研究"), 1200,
                                               LIGHT, line_pct=100000)),
             # 标题字号随长度自适应（中文长题目 40pt 会挤出 3 行）；底部对齐，紧贴副标题
             _textbox(7, "Title", int(0.85 * EMU_IN), int(1.75 * EMU_IN), int(10.6 * EMU_IN),
-                     int(2.2 * EMU_IN), _para(m.get("title", ""), _cover_title_size(m.get("title", "")),
+                     int(2.2 * EMU_IN), self._para(m.get("title", ""), _cover_title_size(m.get("title", "")),
                                               WHITE, bold=True, line_pct=110000), anchor="b"),
             _textbox(8, "Subtitle", int(0.85 * EMU_IN), int(4.05 * EMU_IN), int(10.2 * EMU_IN),
-                     int(0.9 * EMU_IN), _para(m.get("subtitle", ""), 1900, LIGHT, line_pct=115000)),
+                     int(0.9 * EMU_IN), _para(m.get("subtitle", ""), 1900, LIGHT, line_pct=115000,
+                                              font=self.font or FONT_BOLD)),  # 副标题用黑体，不加粗
             _shape(9, "Divider", int(0.88 * EMU_IN), int(5.05 * EMU_IN), int(1.1 * EMU_IN),
                    int(0.05 * EMU_IN), "", fill=self.accent),
             _textbox(10, "Author", int(0.88 * EMU_IN), int(5.3 * EMU_IN), int(10.5 * EMU_IN),
                      int(0.9 * EMU_IN),
-                     _para(m.get("author", ""), 1300, LIGHT, line_pct=110000)
-                     + _para(m.get("date", ""), 1200, "AEB8CE", line_pct=110000)),
+                     self._para(m.get("author", ""), 1300, LIGHT, line_pct=110000)
+                     + self._para(m.get("date", ""), 1200, "AEB8CE", line_pct=110000)),
         ]
         self._slide_index += 1
         return XML_DECL + f"<p:sld {NS}><p:cSld>{_sp_tree(''.join(kids))}</p:cSld>" \
@@ -395,17 +410,18 @@ class Deck:
             # 章节号：大号、主色提亮，与标题垂直居中对齐
             _textbox(4, "Num", int(MARGIN + int(0.35 * EMU_IN)), int(1.9 * EMU_IN),
                      int(2.3 * EMU_IN), int(3.0 * EMU_IN),
-                     _para(number, 7200, "8FAADC", bold=True, line_pct=100000), anchor="ctr"),
+                     self._para(number, 7200, "8FAADC", bold=True, line_pct=100000), anchor="ctr"),
             _textbox(5, "SectionTitle", int(MARGIN + int(2.8 * EMU_IN)), int(1.9 * EMU_IN),
                      int(8.4 * EMU_IN), int(1.75 * EMU_IN),
-                     _para(title, 3200 if _disp_len(title) <= 28 else 2600, WHITE, bold=True,
+                     self._para(title, 3200 if _disp_len(title) <= 28 else 2600, WHITE, bold=True,
                            line_pct=110000), anchor="b"),
             _shape(8, "SectionRule", int(MARGIN + int(2.8 * EMU_IN)), int(3.8 * EMU_IN),
                    int(0.9 * EMU_IN), int(0.05 * EMU_IN), "", fill=self.accent if self.accent != NAVY else BLUE),
             _textbox(6, "SectionSub", int(MARGIN + int(2.8 * EMU_IN)), int(4.0 * EMU_IN),
-                     int(8.2 * EMU_IN), int(0.9 * EMU_IN), _para(sub, 1500, LIGHT, line_pct=120000)),
+                     int(8.2 * EMU_IN), int(0.9 * EMU_IN), _para(sub, 1500, LIGHT, line_pct=120000,
+                                                                 font=self.font or FONT_BOLD)),  # 副标题用黑体
             _textbox(9, "SectionTopic", MARGIN, FOOT_Y, int(8 * EMU_IN), int(0.3 * EMU_IN),
-                     _para(self.topic, 900, "8FA3C4", line_pct=100000)),
+                     self._para(self.topic, 900, "8FA3C4", line_pct=100000)),
         ]
         self._slide_index += 1
         return XML_DECL + f"<p:sld {NS}><p:cSld>{_sp_tree(''.join(kids))}</p:cSld>" \
@@ -416,7 +432,7 @@ class Deck:
         kids = [
             _textbox(3, "Title", MARGIN, int(0.45 * EMU_IN),
                      SW - 2 * MARGIN, int(0.7 * EMU_IN),
-                     _para(title, 2400, NAVY, bold=True, line_pct=100000)),
+                     self._para(title, 2400, NAVY, bold=True, line_pct=100000)),
             f'<p:sp><p:nvSpPr><p:cNvPr id="4" name="Rule"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
             f'<p:spPr><a:xfrm><a:off x="{MARGIN}" y="{int(1.22 * EMU_IN)}"/>'
             f'<a:ext cx="{SW - 2 * MARGIN}" cy="9525"/></a:xfrm>'
@@ -438,9 +454,9 @@ class Deck:
             _shape(3, "QuoteBar", int(1.05 * EMU_IN), int(1.55 * EMU_IN), int(0.12 * EMU_IN),
                    int(2.6 * EMU_IN), "", fill=self.accent),
             _textbox(4, "Statement", int(1.5 * EMU_IN), int(1.55 * EMU_IN), int(10.4 * EMU_IN),
-                     int(3.0 * EMU_IN), _para(text, 2800, NAVY, bold=True, line_pct=120000)),
+                     int(3.0 * EMU_IN), self._para(text, 2800, NAVY, bold=True, line_pct=120000)),
             _textbox(5, "Attribution", int(1.5 * EMU_IN), int(5.1 * EMU_IN), int(10.4 * EMU_IN),
-                     int(0.5 * EMU_IN), _para(attribution, 1300, GRAY, line_pct=100000)),
+                     int(0.5 * EMU_IN), self._para(attribution, 1300, GRAY, line_pct=100000)),
         ]
         return self._frame("".join(kids))
 
@@ -453,7 +469,7 @@ class Deck:
         kids = [
             _textbox(3, "Title", MARGIN, int(0.45 * EMU_IN),
                      SW - 2 * MARGIN, int(0.7 * EMU_IN),
-                     _para(title, 2400, NAVY, bold=True, line_pct=100000)),
+                     self._para(title, 2400, NAVY, bold=True, line_pct=100000)),
             f'<p:sp><p:nvSpPr><p:cNvPr id="4" name="Rule"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
             f'<p:spPr><a:xfrm><a:off x="{MARGIN}" y="{int(1.22 * EMU_IN)}"/>'
             f'<a:ext cx="{SW - 2 * MARGIN}" cy="9525"/></a:xfrm>'
@@ -468,10 +484,10 @@ class Deck:
             kids.append(_shape(20 + i, f"CardBar{i}", x, y, card_w, int(0.07 * EMU_IN), "", fill=self.accent))
             kids.append(_textbox(30 + i, f"Num{i}", x + int(0.28 * EMU_IN), y + int(0.35 * EMU_IN),
                                  card_w - int(0.5 * EMU_IN), int(0.9 * EMU_IN),
-                                 _para(num, 4000, self.accent, bold=True, line_pct=100000)))
+                                 self._para(num, 4000, self.accent, bold=True, line_pct=100000)))
             kids.append(_textbox(40 + i, f"Label{i}", x + int(0.28 * EMU_IN),
                                  y + int(1.35 * EMU_IN), card_w - int(0.5 * EMU_IN),
-                                 int(0.8 * EMU_IN), _para(label, 1300, GRAY, line_pct=110000)))
+                                 int(0.8 * EMU_IN), self._para(label, 1300, GRAY, line_pct=110000)))
         return self._frame("".join(kids))
 
 
@@ -527,7 +543,7 @@ def _parse_table(lines: list[str], i: int) -> tuple[list[list[str]], int]:
     return rows, i
 
 
-def _body_elements(lines: list[str]) -> tuple[list[str], list[list[list[str]]]]:
+def _body_elements(lines: list[str], font: str | None = None) -> tuple[list[str], list[list[list[str]]]]:
     """返回 (段落 XML 列表, 表格列表)。"""
     paras: list[str] = []
     tables: list[list[list[str]]] = []
@@ -544,7 +560,7 @@ def _body_elements(lines: list[str]) -> tuple[list[str], list[list[list[str]]]]:
             continue
         if s.startswith(">"):
             paras.append(_para(s.lstrip("> ").strip(), 1700, NAVY, bold=True, line_pct=125000,
-                               space_before=600, space_after=400))
+                               space_before=600, space_after=400, font=font))
             i += 1
             continue
         m = re.match(r"^(\s*)[-*+]\s+(.*)$", raw)
@@ -553,17 +569,17 @@ def _body_elements(lines: list[str]) -> tuple[list[str], list[list[list[str]]]]:
             paras.append(_para(m.group(2), 1800 if level == 0 else 1600,
                                DARK if level == 0 else "374151",
                                bullet=["square", "dash", "dot"][level], level=level,
-                               space_before=300, space_after=120))
+                               space_before=300, space_after=120, font=font))
             i += 1
             continue
         m = re.match(r"^(\s*)\d+[.)]\s+(.*)$", raw)
         if m:
             level = min(len(m.group(1)) // 2, 2)
             paras.append(_para(m.group(2), 1800, DARK, bullet="num", level=level,
-                               space_before=300, space_after=120))
+                               space_before=300, space_after=120, font=font))
             i += 1
             continue
-        paras.append(_para(s, 1600, DARK, line_pct=125000, space_after=300))
+        paras.append(_para(s, 1600, DARK, line_pct=125000, space_after=300, font=font))
         i += 1
     return paras, tables
 
@@ -735,7 +751,7 @@ def build_deck(md: str, base_dir=None, warnings: list[str] | None = None
             out.append(deck.metrics(title or "关键数字", items))
         else:  # content / table
             title, body = _title_and_body(lines_s)
-            paras, tables = _body_elements(body)
+            paras, tables = _body_elements(body, deck.font)
             if len(tables) > 1:
                 warnings.append(f"「{title}」页有 {len(tables)} 个表格，只渲染第一个")
             full_w = SW - 2 * MARGIN
@@ -769,11 +785,11 @@ def build_deck(md: str, base_dir=None, warnings: list[str] | None = None
                 shapes += _pic(60, "rId2", caption, x, BODY_Y, w, h)
                 if caption:
                     shapes += _textbox(61, "Caption", box_x, BODY_Y + h + int(0.08 * EMU_IN), box_w,
-                                       int(0.3 * EMU_IN), _para(caption, 1100, GRAY, align="ctr",
-                                                                line_pct=100000))
+                                       int(0.3 * EMU_IN), deck._para(caption, 1100, GRAY, align="ctr",
+                                                                 line_pct=100000))
             content = "".join(paras)
             if not content and not shapes:
-                content = _para("（本页暂无内容）", 1600, GRAY)
+                content = deck._para("（本页暂无内容）", 1600, GRAY)
             out.append(deck.content(title or ("表格" if stype == "table" else ""), content,
                                     extras=shapes, body_w=text_w, body_h=text_h or None))
             continue
@@ -805,7 +821,7 @@ def _content_types(n_slides: int) -> str:
             '<Default Extension="xml" ContentType="application/xml"/>' + body + "</Types>")
 
 
-def _theme_xml() -> str:
+def _theme_xml(font: str | None = None) -> str:
     colors = [("dk1", "000000"), ("lt1", "FFFFFF"), ("dk2", NAVY), ("lt2", "F3F4F6"),
               ("accent1", NAVY), ("accent2", BLUE), ("accent3", "70AD47"),
               ("accent4", "FFC000"), ("accent5", "C00000"), ("accent6", "7030A0"),
@@ -818,9 +834,9 @@ def _theme_xml() -> str:
     return (XML_DECL + '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="DSHM">'
             '<a:themeElements>'
             f'<a:clrScheme name="DSHM">{clr}</a:clrScheme>'
-            f'<a:fontScheme name="DSHM"><a:majorFont><a:latin typeface="{FONT_DEFAULT}"/>'
-            f'<a:ea typeface="{FONT_DEFAULT}"/><a:cs typeface=""/></a:majorFont>'
-            f'<a:minorFont><a:latin typeface="{FONT_DEFAULT}"/><a:ea typeface="{FONT_DEFAULT}"/>'
+            f'<a:fontScheme name="DSHM"><a:majorFont>{_font_faces(font, True)}'
+            '<a:cs typeface=""/></a:majorFont>'
+            f'<a:minorFont>{_font_faces(font)}'
             '<a:cs typeface=""/></a:minorFont></a:fontScheme>'
             '<a:fmtScheme name="DSHM">'
             f"<a:fillStyleLst>{fill}{fill}{fill}</a:fillStyleLst>"
@@ -941,6 +957,32 @@ def _xml_bytes(el) -> bytes:
     return (XML_DECL + ET.tostring(el, encoding="unicode")).encode("utf-8")
 
 
+def _set_theme_fonts(entries: dict, font: str | None = None) -> None:
+    """只改输出包内的主题字体，保留模板配色、效果与其他语言设置。"""
+    for name in list(entries):
+        if not re.fullmatch(r"ppt/theme/theme\d+\.xml", name):
+            continue
+        root = ET.fromstring(entries[name])
+        scheme = root.find(f"{{{A_NS}}}themeElements/{{{A_NS}}}fontScheme")
+        if scheme is None:
+            continue
+        for kind, bold in (("majorFont", True), ("minorFont", False)):
+            group = scheme.find(f"{{{A_NS}}}{kind}")
+            if group is None:
+                continue
+            ea = font or (FONT_BOLD if bold else FONT_DEFAULT)
+            for tag, typeface in (("latin", FONT_LATIN), ("ea", ea)):
+                node = group.find(f"{{{A_NS}}}{tag}")
+                if node is None:
+                    node = ET.Element(f"{{{A_NS}}}{tag}")
+                    group.insert(0 if tag == "latin" else 1, node)
+                node.set("typeface", typeface)
+            for node in group.findall(f"{{{A_NS}}}font"):
+                if node.get("script") in ("Hans", "Hant"):
+                    node.set("typeface", ea)
+        entries[name] = _xml_bytes(root)
+
+
 def _pick_blank_layout(entries: dict) -> str:
     names = sorted(n for n in entries if re.fullmatch(r"ppt/slideLayouts/slideLayout\d+\.xml", n))
     for n in names:
@@ -958,7 +1000,7 @@ CT_PML = "application/vnd.openxmlformats-officedocument.presentationml."
 NOTES_W, NOTES_H = 6858000, 9144000
 
 
-def _notes_master_xml() -> str:
+def _notes_master_xml(font: str | None = None) -> str:
     """最小可用的备注母版：幻灯片缩略图占位 + 备注正文占位。"""
     ph = ('<p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image Placeholder 1"/>'
           '<p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1"/></p:cNvSpPr>'
@@ -971,7 +1013,7 @@ def _notes_master_xml() -> str:
           '<p:spPr><a:xfrm><a:off x="685800" y="4400550"/><a:ext cx="5486400" cy="3600450"/></a:xfrm>'
           '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>'
           '<p:txBody><a:bodyPr vert="horz" lIns="91440" tIns="45720" rIns="91440" bIns="45720" rtlCol="0"/>'
-          '<a:lstStyle/><a:p><a:pPr lvl="0"/><a:r><a:rPr lang="zh-CN"/><a:t>备注</a:t></a:r></a:p></p:txBody></p:sp>')
+          f'<a:lstStyle/><a:p><a:pPr lvl="0"/>{_runs("备注", 1200, font=font)}</a:p></p:txBody></p:sp>')
     return (XML_DECL + f"<p:notesMaster {NS}><p:cSld>"
             '<p:bg><p:bgRef idx="1001"><a:schemeClr val="bg1"/></p:bgRef></p:bg>'
             + _sp_tree(ph) + "</p:cSld>"
@@ -979,15 +1021,12 @@ def _notes_master_xml() -> str:
             'accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>'
             '<p:notesStyle><a:lvl1pPr marL="0" algn="l" defTabSz="914400" rtl="0" eaLnBrk="1" latinLnBrk="0" hangingPunct="1">'
             '<a:defRPr sz="1200" kern="1200"><a:solidFill><a:schemeClr val="tx1"/></a:solidFill>'
-            '<a:latin typeface="+mn-lt"/><a:ea typeface="+mn-ea"/><a:cs typeface="+mn-cs"/></a:defRPr></a:lvl1pPr>'
+            f'{_font_faces(font)}<a:cs typeface="+mn-cs"/></a:defRPr></a:lvl1pPr>'
             "</p:notesStyle></p:notesMaster>")
 
 
-def _notes_slide_xml(notes: list[str], font: str) -> str:
-    paras = "".join(
-        f'<a:p><a:r><a:rPr lang="zh-CN" altLang="en-US" sz="1200" dirty="0">'
-        f'<a:latin typeface="{font}"/><a:ea typeface="{font}"/></a:rPr>'
-        f'<a:t xml:space="preserve">{_esc(t)}</a:t></a:r></a:p>' for t in notes) or "<a:p/>"
+def _notes_slide_xml(notes: list[str], font: str | None) -> str:
+    paras = "".join(f'<a:p>{_runs(t, 1200, font=font)}</a:p>' for t in notes) or "<a:p/>"
     kids = ('<p:sp><p:nvSpPr><p:cNvPr id="2" name="Slide Image Placeholder 1"/>'
             '<p:cNvSpPr><a:spLocks noGrp="1" noRot="1" noChangeAspect="1"/></p:cNvSpPr>'
             '<p:nvPr><p:ph type="sldImg"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>'
@@ -998,7 +1037,7 @@ def _notes_slide_xml(notes: list[str], font: str) -> str:
             "<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:notes>")
 
 
-def _attach_media_and_notes(entries: dict, pres, rels, ct, extras: list[dict], font: str,
+def _attach_media_and_notes(entries: dict, pres, rels, ct, extras: list[dict], font: str | None,
                             layout: str, next_id: int) -> int:
     """给每页写 slide rels；按需加入图片（ppt/media）与演讲者备注（notesMaster + notesSlide）。
 
@@ -1026,9 +1065,9 @@ def _attach_media_and_notes(entries: dict, pres, rels, ct, extras: list[dict], f
         theme_n = 1
         while f"ppt/theme/theme{theme_n}.xml" in entries:
             theme_n += 1
-        entries[f"ppt/theme/theme{theme_n}.xml"] = theme_src or _theme_xml().encode("utf-8")
+        entries[f"ppt/theme/theme{theme_n}.xml"] = theme_src or _theme_xml(font).encode("utf-8")
         override(f"/ppt/theme/theme{theme_n}.xml", "application/vnd.openxmlformats-officedocument.theme+xml")
-        entries["ppt/notesMasters/notesMaster1.xml"] = _notes_master_xml().encode("utf-8")
+        entries["ppt/notesMasters/notesMaster1.xml"] = _notes_master_xml(font).encode("utf-8")
         entries["ppt/notesMasters/_rels/notesMaster1.xml.rels"] = (
             XML_DECL + f'<Relationships xmlns="{REL_NS}"><Relationship Id="rId1" Type="{REL_T}theme" '
             f'Target="../theme/theme{theme_n}.xml"/></Relationships>').encode("utf-8")
@@ -1072,10 +1111,9 @@ def _attach_media_and_notes(entries: dict, pres, rels, ct, extras: list[dict], f
 
 def build_from_template(md: str, out_path, template_path, base_dir=None,
                         warnings: list[str] | None = None) -> dict:
-    """以真实 PPTX（如 python-pptx 的 default.pptx）为底包，只替换幻灯片。
+    """以真实 PPTX（如 python-pptx 的 default.pptx）为底包，生成幻灯片与主题字体。
 
-    好处：theme / slideMaster / slideLayout / presProps / viewProps / tableStyles
-    等静态部件都是官方模板原样，兼容性最稳；我们只负责生成 slide XML。
+    保留模板的配色、效果、母版和版式等部件；字体规则仅写入输出副本，不改底包文件。
     """
     meta, slides, extras = build_deck(md, base_dir, warnings)
     with zipfile.ZipFile(template_path) as z:
@@ -1125,10 +1163,11 @@ def build_from_template(md: str, out_path, template_path, base_dir=None,
             ov.set("PartName", part)
             ov.set("ContentType", "application/vnd.openxmlformats-officedocument.presentationml.slide+xml")
 
+    _set_theme_fonts(entries, meta.get("font"))
     layout = _pick_blank_layout(entries)
     for i, slide_xml in enumerate(slides, 1):
         entries[f"ppt/slides/slide{i}.xml"] = slide_xml.encode("utf-8")
-    _attach_media_and_notes(entries, pres, rels, ct, extras, meta.get("font") or FONT_DEFAULT,
+    _attach_media_and_notes(entries, pres, rels, ct, extras, meta.get("font"),
                             layout, next_id)
     entries["ppt/presentation.xml"] = _xml_bytes(pres)
     entries["ppt/_rels/presentation.xml.rels"] = _xml_bytes(rels)
@@ -1166,7 +1205,7 @@ def build_pptx(md: str, out_path, template_path=None, base_dir=None,
         "ppt/viewProps.xml": XML_DECL + f"<p:viewPr {NS}/>",
         "ppt/tableStyles.xml": XML_DECL + '<a:tblStyleLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
                                           'def="{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"/>',
-        "ppt/theme/theme1.xml": _theme_xml(),
+        "ppt/theme/theme1.xml": _theme_xml(meta.get("font")),
         "ppt/slideMasters/slideMaster1.xml": _master_xml(),
         "ppt/slideMasters/_rels/slideMaster1.xml.rels": XML_DECL + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
             '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'
@@ -1196,7 +1235,7 @@ def main(argv=None) -> int:
     ap.add_argument("input", help="输入 .md（DSL 见文件头注释）")
     ap.add_argument("--out", help="输出 .pptx（默认同名 .pptx）")
     ap.add_argument("--accent", help="主色（十六进制，如 1F3864）")
-    ap.add_argument("--font", help="字体（默认 Microsoft YaHei）")
+    ap.add_argument("--font", help="显式覆盖所有中文字体；默认正文宋体、加粗/标题/副标题/表头黑体；英文与数字固定 Times New Roman")
     ap.add_argument("--template", help="底包 .pptx（默认 _pptx_template.pptx，存在则用；--no-template 可禁用）")
     ap.add_argument("--no-template", action="store_true", help="不用底包，纯生成（兼容性风险较高）")
     args = ap.parse_args(argv)

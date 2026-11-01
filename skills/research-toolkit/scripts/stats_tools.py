@@ -22,7 +22,7 @@ import os
 import sys
 
 sys.path.insert(0, os.environ.get("DSH_TOOL_DIR") or os.path.dirname(os.path.abspath(globals().get("__file__", "run_tool.py"))))
-from _util import fmt_p, md_table, resolve_path  # noqa: E402
+from _util import fmt_p, fmt_p_eq, md_table, resolve_path  # noqa: E402
 
 ND = __import__("statistics").NormalDist()
 _EPS = 1e-12
@@ -409,8 +409,8 @@ def cmd_compare(args) -> int:
         [levels[0], len(a), f"{mean(a):.3f}", f"{math.sqrt(var(a)):.3f}"],
         [levels[1], len(b), f"{mean(b):.3f}", f"{math.sqrt(var(b)):.3f}"]]))
     print(f"\n**Welch t 检验**：均数差（{levels[1]} − {levels[0]}）= {diff:.3f}，"
-          f"95%CI {diff - tc * se:.3f} ~ {diff + tc * se:.3f}，t({df:.1f}) = {t:.3f}，p = {fmt_p(p)}")
-    print(f"**Mann-Whitney U**：U = {u:.1f}，z = {z:.3f}，p = {fmt_p(p_mw)}")
+          f"95%CI {diff - tc * se:.3f} ~ {diff + tc * se:.3f}，t({df:.1f}) = {t:.3f}，p {fmt_p_eq(p)}")
+    print(f"**Mann-Whitney U**：U = {u:.1f}，z = {z:.3f}，p {fmt_p_eq(p_mw)}")
     return 0
 
 
@@ -522,7 +522,7 @@ def cmd_corr(args) -> int:
     syy2 = sum((b - mry) ** 2 for b in ry)
     rho = sxy2 / math.sqrt(sxx2 * syy2) if sxx2 > 0 and syy2 > 0 else 0.0
     print(f"# 相关分析：{args.x} vs {args.y}（n={n}）\n")
-    print(f"Pearson r = {r:.3f}，95%CI {ci}，p = {fmt_p(p)}")
+    print(f"Pearson r = {r:.3f}，95%CI {ci}，p {fmt_p_eq(p)}")
     print(f"Spearman ρ = {rho:.3f}")
     return 0
 

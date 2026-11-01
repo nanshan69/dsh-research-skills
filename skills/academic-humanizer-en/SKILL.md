@@ -259,3 +259,13 @@ the gap for the author rather than papering over it.
 ## Output
 Return the cleaned text plus a short change report: patterns removed (by type), claims softened or given
 evidence pointers, and any voice/venue notes. Confirm that no number, equation, or citation was altered.
+
+---
+
+## Local addendum (DSHM; not part of the upstream MIT text above)
+For English manuscripts and journal submissions, also follow
+`../research-paper-writing/references/english-journal-conventions.md` (journal style: AMA/APA/NEJM/Lancet,
+*P* values and CIs, units, references, declarations, common issues in manuscripts by Chinese authors).
+Format normalization such as spacing, italics, and half-width punctuation is an expression-level change you may make
+and list in the change report. A change to a value or its precision (for example *P* = .000 to *P* < .001, or changing
+decimal places) goes to the author as a query; do not make it silently.

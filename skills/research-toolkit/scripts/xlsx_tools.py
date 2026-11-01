@@ -53,9 +53,27 @@ def csv2xlsx(csv_paths, out, sheet_names=None) -> None:
             ws.append(r)
         if rows:
             from openpyxl.styles import Alignment, Font, PatternFill
+            from openpyxl.cell.rich_text import CellRichText, TextBlock
+            from openpyxl.cell.text import InlineFont
+            import re
+            # XLSX 没有 Word 的 eastAsia/latin 槽；中英混排须使用富文本片段。
+            cjk = re.compile(r"([\u2e80-\u9fff\uf900-\ufaff\ufe30-\ufe4f\uff00-\uffef\U00020000-\U000323af]+)")
+
+            def formatted(value, header=False):
+                if not isinstance(value, str) or not cjk.search(value):
+                    return value
+                chinese = "黑体" if header else "宋体"
+                return CellRichText([
+                    TextBlock(InlineFont(rFont=chinese if cjk.fullmatch(part) else "Times New Roman",
+                                         b=header), part)
+                    for part in cjk.split(value) if part
+                ])
+
             head_fill = PatternFill("solid", fgColor="D9E2F3")
             for cell in ws[1]:
-                cell.font = Font(bold=True)
+                cell.font = Font(name="Times New Roman", bold=True)
+                if cell.data_type != "f":
+                    cell.value = formatted(cell.value, header=True)
                 cell.fill = head_fill
                 cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
             # 冻结表头 + 首列（首列通常是 PMID/编号）；只有一列时只冻结表头
@@ -67,6 +85,9 @@ def csv2xlsx(csv_paths, out, sheet_names=None) -> None:
                 width = max((_disp_width(c.value) for c in col if c.value is not None), default=8)
                 ws.column_dimensions[col[0].column_letter].width = min(max(8, width * 1.1 + 2), 50)
                 for c in col[1:]:
+                    c.font = Font(name="Times New Roman")
+                    if c.data_type != "f":
+                        c.value = formatted(c.value)
                     if c.value is not None and (_disp_width(c.value) > 45 or "\n" in str(c.value)):
                         c.alignment = wrap
     ensure_parent(out)

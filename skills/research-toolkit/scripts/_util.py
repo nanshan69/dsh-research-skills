@@ -107,12 +107,23 @@ def md_table(headers: list[str], rows: list[list]) -> str:
     return "\n".join(out)
 
 
-def fmt_p(p: float) -> str:
-    """p 值格式化：保留 3 位有效数字，<0.001 时写 <0.001。"""
+def fmt_p(p: float, alpha: float = 0.05) -> str:
+    """p 值格式化：保留 3 位小数，<0.001 时写 <0.001（见 research-paper-writing 文本规范第 4 节）。
+
+    四舍五入会跨过检验水准 alpha 时多保留小数位，例如 0.0496 写 0.0496 而不是 0.050。
+    """
     if p is None:
         return "NA"
     if p < 0.001:
         return "<0.001"
-    if p < 0.01:
-        return f"{p:.4f}"
-    return f"{p:.3f}"
+    for digits in range(3, 9):
+        text = f"{p:.{digits}f}"
+        if (float(text) < alpha) == (p < alpha):
+            return text
+    return text
+
+
+def fmt_p_eq(p: float, alpha: float = 0.05) -> str:
+    """带关系符的 p 值：'= 0.021' 或 '< 0.001'，避免输出 'p = <0.001'。"""
+    text = fmt_p(p, alpha)
+    return text.replace("<", "< ") if text.startswith("<") else f"= {text}"
